@@ -494,8 +494,12 @@ class Server(object):
         """Generate a unique session id."""
         return uuid.uuid4().hex
 
-    def _generate_myid(self, message):
-        message_bytes = message.encode('ascii')
+    def _generate_myid(self, environ):
+        user_info = ''
+        query_data = urllib.parse.parse_qs(environ.get('RAW_URI', ''))
+        if 'userid' in query_data and 'deviceid' in query_data:
+            user_info = '{}__{}'.format(query_data['userid'][0], query_data['deviceid'][0])
+        message_bytes = user_info.encode('ascii')
         base64_bytes = base64.b64encode(message_bytes)
         base64_message = base64_bytes.decode('ascii')
         return base64_message
@@ -522,13 +526,9 @@ class Server(object):
             self.start_service_task = False
             self.start_background_task(self._service_task)
 
-        user_info = ''
-        query_data = urllib.parse.parse_qs(environ.get('RAW_URI', ''))
-        if 'userid' in query_data and 'deviceid' in query_data:
-             user_info = '{}__{}'.format(query_data['userid'][0], query_data['deviceid'][0])
-
-        sid = self._generate_myid(user_info)
-        # sid = self._generate_id()
+        sid = self._generate_myid(environ)
+        if not len(sid):
+            sid = self._generate_id()
         s = socket.Socket(self, sid)
         self.sockets[sid] = s
 
